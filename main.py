@@ -1,25 +1,72 @@
 #!/usr/bin/env python3
 
+from collections import Counter
+import csv
+import datetime
 import sys
-import pandas as pd
 
-if len(sys.argv) > 1:
-    filepath = sys.argv[1]
-else:
-    filepath = "/Users/isaac/Desktop/01-Jan-2011_to_31-Mar-2021.csv"
+
+def read_csv(csv_path):
+    """ Converts csv file to list of orders (dicts) """
+
+    def process(row):
+        """ Helper function to parse row values correctly """
+        def parse_date(date_str):
+            m, d, y = [int(x) for x in date_str.split('/')]
+            y += 2000
+            return datetime.date(y, m, d)
+
+        def parse_category(cat_str):
+            category_table = {
+                "ABIS_BOOK": 'books',
+                "ELECTRONIC_CABLE": 'cables',
+                "HEALTH_PERSONAL_CARE": 'toiletries',
+            }
+            if cat_str in category_table:
+                cat_str = category_table.get(cat_str)
+            return cat_str
+
+        row['Order Date'] = parse_date(row.get('Order Date'))
+        row['Category'] = parse_category(row.get('Category'))
+        row['Item Total'] = float(row.get('Item Total').replace('$', ''))
+        return row
+
+    with open(csv_path, newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        return [process(row) for row in reader]
+
+
+def get_stats(orders):
+    """ extracts summary stats from order dict """
+
+    totals = [order['Item Total'] for order in orders]
+    dates = [dt.get('Order Date') for dt in orders]
+    cats = [order.get('Category') for order in orders]
+
+    return {
+        'total': round(sum(totals), 2),
+        'top_day': Counter([d.strftime("%A") for d in dates]).most_common(),
+        'top_cats': [x[0] for x in Counter(cats).most_common() if x[0]][:3],
+        'years': round((max(dates) - min(dates)).days / 365),
+    }
+
+
+def print_summary_stats(stats):
+    summary_str = f"""In {stats['years']} years, I spent ${stats['total']:,}\n
+                  I bought {', '.join(stats['top_cats'][1:])}.\n
+                  And a lot of {stats['top_cats'][0]}."""
+
+    print(summary_str)
 
 
 def main():
-    df = pd.read_csv(filepath)
-
-    df['Item Total'] = df['Item Total'].str.replace('$', '', regex=False)
-
-    total = sum(df['Item Total'].astype('float'))
-
-    l_idx = len(df['Order Date']) - 1
-    date_range = f"{df['Order Date'][0]} - {df['Order Date'][l_idx]}"
-
-    print(f"You spent {total} during {date_range}")
+    if len(sys.argv) < 2:
+        print("CSV file required")
+    else:
+        filepath = sys.argv[1]
+        orders = read_csv(filepath)
+        stats = get_stats(orders)
+        print_summary_stats(stats)
 
 
 if __name__ == "__main__":
