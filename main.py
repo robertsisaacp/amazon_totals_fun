@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from collections import Counter
+from pathlib import Path
 import csv
 import datetime
 import sys
@@ -16,18 +17,7 @@ def read_csv(csv_path):
             y += 2000
             return datetime.date(y, m, d)
 
-        def parse_category(cat_str):
-            category_table = {
-                "ABIS_BOOK": 'books',
-                "ELECTRONIC_CABLE": 'cables',
-                "HEALTH_PERSONAL_CARE": 'toiletries',
-            }
-            if cat_str in category_table:
-                cat_str = category_table.get(cat_str)
-            return cat_str
-
         row['Order Date'] = parse_date(row.get('Order Date'))
-        row['Category'] = parse_category(row.get('Category'))
         row['Item Total'] = float(row.get('Item Total').replace('$', ''))
         return row
 
@@ -63,7 +53,7 @@ def main():
     if len(sys.argv) < 2:
         print("CSV file required")
     else:
-        filepath = sys.argv[1]
+        filepath = Path(sys.argv[1])
         orders = read_csv(filepath)
         stats = get_stats(orders)
         print_summary_stats(stats)
